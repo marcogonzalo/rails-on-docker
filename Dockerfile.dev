@@ -1,0 +1,30 @@
+FROM ruby:3.1.2-slim
+
+ENV LANG=C.UTF-8 \
+  APP_PATH=/app \
+  BUNDLE_JOBS=4 \
+  BUNDLE_RETRY=3 \
+  RAILS_PORT=3000
+
+COPY ./*entrypoint.sh  /usr/local/bin/
+RUN chmod +x /usr/local/bin/*entrypoint.sh
+
+RUN apt-get update -qq && apt-get install -yq --no-install-recommends \
+    build-essential gnupg2 less git libpq-dev postgresql-client libvips42 && \
+  rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* && \
+  addgroup --gid 1000 rails_user && \
+  useradd --uid 1000 --gid rails_user rails_user && \
+  mkdir -p $APP_PATH && \
+  chown -R rails_user:rails_user $APP_PATH
+
+USER rails_user
+WORKDIR $APP_PATH
+
+RUN gem update --system && gem install bundler \
+  && rm -rf $GEM_HOME/cache/*
+
+COPY --chown=rails_user:rails_user Gemfile* ./
+
+EXPOSE $RAILS_PORT
+
+CMD ["bundle", "exec", "rails", "s", "-b", "0.0.0.0"]
